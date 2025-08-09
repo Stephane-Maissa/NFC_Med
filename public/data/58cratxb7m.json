@@ -1,0 +1,16 @@
+{
+  "nom": "Stéphane Maissa",
+  "adresse": "2204 Rue du Sorbier",
+  "telephone": "15819963481",
+  "groupe_sanguin": "",
+  "allergies": [
+    "poussière de maison"
+  ],
+  "traitements": "ventoline",
+  "medicaments": [],
+  "urgence": {
+    "nom": "Stéphanie",
+    "telephone": "5793480052"
+  },
+  "last_update": "2025-08-09T15:49:36.741Z"
+}
