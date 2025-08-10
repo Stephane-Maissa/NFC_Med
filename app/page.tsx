@@ -32,7 +32,7 @@ import { Plus, Download, Upload, Save, Trash2, Edit, QrCode, Copy, ShieldCheck, 
  */
 
 // -------- Types --------
-export type MedicalCard = {
+type MedicalCard = {
   id: string;
   token?: string; // optionnel si vous activez un paramètre d'accès (?t=)
   nom: string;
