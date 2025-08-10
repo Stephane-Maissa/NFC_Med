@@ -32,7 +32,7 @@ import { Plus, Download, Upload, Save, Trash2, Edit, QrCode, Copy, ShieldCheck, 
  */
 
 // -------- Types --------
-type MedicalCard = {
+export type MedicalCard = {
   id: string;
   token?: string; // optionnel si vous activez un paramètre d'accès (?t=)
   nom: string;
@@ -312,18 +312,14 @@ function EditDialog({
                 <Label>ID (URL)</Label>
                 <div className="flex gap-2">
                   <Input value={local.id} onChange={(e) => set("id", e.target.value)} className="font-mono" />
-                  <Button type="button" variant="outline" onClick={() => set("id", nanoid())}>
-                    <RefreshCw className="h-4 w-4" />
-                  </Button>
+                  <Button type="button" variant="outline" onClick={() => set("id", nanoid())}><RefreshCw className="h-4 w-4" /></Button>
                 </div>
               </div>
               <div className="grid gap-2">
                 <Label>Token (optionnel)</Label>
                 <div className="flex gap-2">
                   <Input value={local.token || ""} onChange={(e) => set("token", e.target.value)} className="font-mono" />
-                  <Button type="button" variant="outline" onClick={() => set("token", nanoid(16))}>
-                    <Lock className="h-4 w-4" />
-                  </Button>
+                  <Button type="button" variant="outline" onClick={() => set("token", nanoid(16))}><Lock className="h-4 w-4" /></Button>
                   <Button type="button" variant="ghost" onClick={() => set("token", "")}>Effacer</Button>
                 </div>
                 <p className="text-xs text-muted-foreground">
@@ -378,13 +374,283 @@ function EditDialog({
 
         <DialogFooter className="mt-4">
           <Button variant="outline" onClick={() => onOpenChange(false)}>Annuler</Button>
-          <Button onClick={() => onSave({ ...local, last_update: nowISO() })} className="gap-2">
-            <Save className="h-4 w-4" />
-            Enregistrer
-          </Button>
+          <Button onClick={() => onSave({ ...local, last_update: nowISO() })} className="gap-2"><Save className="h-4 w-4" />Enregistrer</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 }
 
+function QrDialog({
+  open,
+  onOpenChange,
+  card,
+  baseUrl,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  card: MedicalCard | null;
+  baseUrl: string;
+}) {
+  if (!card) return null;
+  const url = buildPublicUrl(baseUrl, card.id, card.token);
+  const cmd = `python tools/write_ntag215.py ${url}`;
+
+  function copy(text: string) {
+    if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(text);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Partager / Encoder</DialogTitle>
+        </DialogHeader>
+        <div className="grid gap-4">
+          <div className="flex items-center justify-center">
+            <div className="p-4 rounded-xl border bg-background">
+              <QRCodeCanvas value={url} size={192} includeMargin />
+            </div>
+          </div>
+          <div className="grid gap-2">
+            <Label>URL publique</Label>
+            <div className="flex gap-2">
+              <Input readOnly value={url} className="font-mono" />
+              <Button variant="outline" onClick={() => copy(url)} className="gap-2"><Copy className="h-4 w-4" />Copier</Button>
+              <Button asChild className="gap-2">
+                <a href={url} target="_blank" rel="noreferrer"><Globe className="h-4 w-4" />Ouvrir</a>
+              </Button>
+            </div>
+          </div>
+          <div className="grid gap-2">
+            <Label>{`Commande d'écriture NFC (PC + lecteur)`}</Label>
+            <div className="flex gap-2">
+              <Input readOnly value={cmd} className="font-mono" />
+              <Button variant="outline" onClick={() => copy(cmd)} className="gap-2"><Copy className="h-4 w-4" />Copier</Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Nécessite votre script <code className="font-mono">tools/write_ntag215.py</code> et un lecteur compatible (ex. ACR122U).
+            </p>
+          </div>
+          <div className="text-xs text-muted-foreground">
+            {`Astuce: imprimez le QR et glissez-le dans le portefeuille de la personne, en plus de la puce.`}
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function ConfirmDialog({
+  open,
+  onOpenChange,
+  onConfirm,
+  title,
+  description,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  onConfirm: () => void;
+  title: string;
+  description: string;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+        </DialogHeader>
+        <p className="text-sm text-muted-foreground">{description}</p>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Annuler</Button>
+          <Button variant="destructive" onClick={onConfirm} className="gap-2"><Trash2 className="h-4 w-4" />Supprimer</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+export default function MedicalNFCAdmin() {
+  const [cards, setCards] = useState<MedicalCard[]>([]);
+  const [baseUrl, setBaseUrl] = useState<string>("https://github.com/Stephane-Maissa");
+  const [editId, setEditId] = useState<string | null>(null);
+  const [qrId, setQrId] = useState<string | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+
+  const editing = useMemo(() => cards.find((c) => c.id === editId) || null, [cards, editId]);
+  const qrcard = useMemo(() => cards.find((c) => c.id === qrId) || null, [cards, qrId]);
+
+  // Charger
+  useEffect(() => {
+    try {
+      if (typeof window !== "undefined") {
+        const raw = window.localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const arr = JSON.parse(raw);
+          if (Array.isArray(arr)) setCards(arr);
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  // Charger baseUrl
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const stored = window.localStorage.getItem(BASEURL_KEY);
+      if (stored) setBaseUrl(stored);
+    }
+  }, []);
+
+  // Sauver
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(cards));
+    }
+  }, [cards]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(BASEURL_KEY, baseUrl);
+    }
+  }, [baseUrl]);
+
+  function createNew() {
+    const c: MedicalCard = {
+      id: nanoid(),
+      token: "",
+      nom: "",
+      adresse: "",
+      telephone: "",
+      groupe_sanguin: "",
+      allergies: [],
+      traitements: "",
+      medicaments: [],
+      urgence: { nom: "", telephone: "" },
+      last_update: nowISO(),
+    };
+    setCards((prev) => [c, ...prev]);
+    setEditId(c.id);
+  }
+
+  function saveCard(updated: MedicalCard) {
+    setCards((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+    setEditId(null);
+  }
+
+  function deleteCard(id: string) {
+    setCards((prev) => prev.filter((c) => c.id !== id));
+    setDeleteId(null);
+  }
+
+  function downloadJson(id: string) {
+    const card = cards.find((c) => c.id === id);
+    if (!card) return;
+    const json = cardToJson(card);
+    downloadFile(`${id}.json`, JSON.stringify(json, null, 2));
+  }
+
+  async function exportZip() {
+    const zip = new JSZip();
+    const folder = zip.folder("data");
+    if (!folder) return;
+    cards.forEach((c) => folder.file(`${c.id}.json`, JSON.stringify(cardToJson(c), null, 2)));
+    const readme =
+      `Déposez le contenu du dossier data/ à la racine de votre hébergement statique (\n` +
+      `ex: /data/<id>.json) et conservez votre viewer à /m/index.html.\n` +
+      `BaseURL actuelle: ${sanitizeBaseUrl(baseUrl)}`;
+    zip.file("README.txt", readme);
+    const blob = await zip.generateAsync({ type: "blob" });
+    saveAs(blob, `nfc-medical-data-${new Date().toISOString().slice(0, 10)}.zip`);
+  }
+
+  async function onImport(files: FileList | null) {
+    if (!files || files.length === 0) return;
+    const imported: MedicalCard[] = [];
+    for (const f of Array.from(files)) {
+      try {
+        const text = await f.text();
+        const json = JSON.parse(text);
+        // Essaye d'inférer l'ID depuis le nom de fichier si possible
+        const inferredId = f.name.replace(/\.json$/i, "");
+        const card = fromJsonToCard(json, inferredId);
+        imported.push(card);
+      } catch (e) {
+        console.error("Import error for", f.name, e);
+      }
+    }
+    if (imported.length) {
+      // fusion (remplace si même id)
+      setCards((prev) => {
+        const map = new Map(prev.map((c) => [c.id, c] as const));
+        for (const c of imported) map.set(c.id, c);
+        return Array.from(map.values());
+      });
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-background">
+      <div className="mx-auto max-w-6xl p-5 md:p-8">
+        <div className="mb-6">
+          <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">Back-office — Fiches médicales NFC</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Générez, éditez et exportez des fiches prêtes pour vos puces NTAG215 et votre site public.
+          </p>
+        </div>
+
+        <Card className="mb-6">
+          <CardContent className="pt-6">
+            <Toolbar
+              onNew={createNew}
+              onImport={onImport}
+              onExportZip={exportZip}
+              baseUrl={baseUrl}
+              setBaseUrl={setBaseUrl}
+            />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              Fiches <Badge variant="secondary">{cards.length}</Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <CardsTable
+              cards={cards}
+              onEdit={(id) => setEditId(id)}
+              onDelete={(id) => setDeleteId(id)}
+              onDownload={downloadJson}
+              onQr={(id) => setQrId(id)}
+            />
+          </CardContent>
+        </Card>
+
+        {/* Dialogs */}
+        <EditDialog open={!!editId} onOpenChange={(v) => !v && setEditId(null)} card={editing} onSave={saveCard} />
+        <QrDialog open={!!qrId} onOpenChange={(v) => !v && setQrId(null)} card={qrcard} baseUrl={baseUrl} />
+        <ConfirmDialog
+          open={!!deleteId}
+          onOpenChange={(v) => !v && setDeleteId(null)}
+          onConfirm={() => deleteCard(deleteId!)}
+          title="Supprimer la fiche ?"
+          description="Cette action est définitive (dans ce back-office)."
+        />
+
+        <footer className="text-xs text-muted-foreground text-center mt-8">
+          <div className="flex items-center justify-center gap-2">
+            <ShieldCheck className="h-3.5 w-3.5" />
+            <span>
+              Conseil confidentialité : protégez ce back-office par mot de passe (Basic Auth / proxy) et utilisez des IDs opaques.
+            </span>
+          </div>
+        </footer>
+      </div>
+    </div>
+  );
+}
