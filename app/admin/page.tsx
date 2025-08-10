@@ -158,13 +158,13 @@ function Toolbar({ onNew, onImport, onExportZip, baseUrl, setBaseUrl }: {
   );
 }
 
-function CardsTable({ cards, onEdit, onDelete, onDownload, onQr, baseUrl }: {
+function CardsTable({ cards, onEdit, onDelete, onDownload, onQr}: {
   cards: MedicalCard[];
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
   onDownload: (id: string) => void;
   onQr: (id: string) => void;
-  baseUrl: string;
+  // baseUrl: string;
 }) {
   return (
     <div className="rounded-2xl border bg-card">
@@ -512,7 +512,7 @@ export default function MedicalNFCAdmin() {
               onDelete={(id) => setDeleteId(id)}
               onDownload={downloadJson}
               onQr={(id) => setQrId(id)}
-              baseUrl={baseUrl}
+              // baseUrl={baseUrl}
             />
           </CardContent>
         </Card>
