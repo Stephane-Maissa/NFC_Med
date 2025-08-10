@@ -312,14 +312,18 @@ function EditDialog({
                 <Label>ID (URL)</Label>
                 <div className="flex gap-2">
                   <Input value={local.id} onChange={(e) => set("id", e.target.value)} className="font-mono" />
-                  <Button type="button" variant="outline" onClick={() => set("id", nanoid())}><RefreshCw className="h-4 w-4" /></Button>
+                  <Button type="button" variant="outline" onClick={() => set("id", nanoid())}>
+                    <RefreshCw className="h-4 w-4" />
+                  </Button>
                 </div>
               </div>
               <div className="grid gap-2">
                 <Label>Token (optionnel)</Label>
                 <div className="flex gap-2">
                   <Input value={local.token || ""} onChange={(e) => set("token", e.target.value)} className="font-mono" />
-                  <Button type="button" variant="outline" onClick={() => set("token", nanoid(16))}><Lock className="h-4 w-4" /></Button>
+                  <Button type="button" variant="outline" onClick={() => set("token", nanoid(16))}>
+                    <Lock className="h-4 w-4" />
+                  </Button>
                   <Button type="button" variant="ghost" onClick={() => set("token", "")}>Effacer</Button>
                 </div>
                 <p className="text-xs text-muted-foreground">
@@ -374,3 +378,13 @@ function EditDialog({
 
         <DialogFooter className="mt-4">
           <Button variant="outline" onClick={() => onOpenChange(false)}>Annuler</Button>
+          <Button onClick={() => onSave({ ...local, last_update: nowISO() })} className="gap-2">
+            <Save className="h-4 w-4" />
+            Enregistrer
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
