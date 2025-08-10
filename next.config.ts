@@ -1,19 +1,10 @@
-import type { NextConfig } from "next";
+// next.config.ts
+import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  /* config options here */
-};
-/** @type {import('next').NextConfig} */
-export default {
   reactStrictMode: true,
-
+  // Passe les erreurs ESLint en dehors du build pour débloquer le déploiement
   eslint: { ignoreDuringBuilds: true },
-  typescript: { ignoreBuildErrors: true },
-
-  async rewrites() {
-    return [{ source: '/m/:id', destination: '/m/index.html' }];
-  },
-  async headers() { /* ... tes headers ... */ },
 };
 
 export default nextConfig;
