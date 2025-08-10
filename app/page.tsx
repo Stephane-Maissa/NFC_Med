@@ -11,11 +11,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
+// import { Switch } from "@/components/ui/switch";
 import { QRCodeCanvas } from "qrcode.react";
 import JSZip from "jszip";
 import { saveAs } from "file-saver";
-import { Plus, Download, Upload, Save, Trash2, Edit, QrCode, Link, Copy, ShieldCheck, Lock, Globe, FileJson, Package, RefreshCw } from "lucide-react";
+import { Plus, Download, Upload, Save, Trash2, Edit, QrCode, Copy, ShieldCheck, Lock, Globe, Package, RefreshCw } from "lucide-react";
+// import { Plus, Download, Upload, Save, Trash2, Edit, QrCode, Link, Copy, ShieldCheck, Lock, Globe, FileJson, Package, RefreshCw } from "lucide-react";
 
 /**
  * Back‑office React pour gérer les fiches médicales NFC.
@@ -48,7 +49,7 @@ export type MedicalCard = {
 // -------- Utilitaires --------
 const STORAGE_KEY = "nfc_med_cards_v1";
 const BASEURL_KEY = "nfc_base_url";
-const PREFS_KEY = "nfc_admin_prefs";
+// const PREFS_KEY = "nfc_admin_prefs";
 
 const alpha = "0123456789abcdefghijklmnopqrstuvwxyz";
 function nanoid(n = 10) {
@@ -115,7 +116,7 @@ function downloadFile(filename: string, content: string, mime = "application/jso
   saveAs(blob, filename);
 }
 
-function ensureArray<T>(v: T | T[]): T[] { return Array.isArray(v) ? v : [v]; }
+// function ensureArray<T>(v: T | T[]): T[] { return Array.isArray(v) ? v : [v]; }
 
 // -------- Composants --------
 
