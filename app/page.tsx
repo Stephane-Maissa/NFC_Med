@@ -81,7 +81,7 @@ function sanitizeBaseUrl(s: string) {
 }
 
 function buildPublicUrl(baseUrl: string, id: string, token?: string) {
-  const u = `${sanitizeBaseUrl(baseUrl) || "nfc-med.vercel.app"}/m/${encodeURIComponent(id)}`;
+  const u = `${sanitizeBaseUrl(baseUrl) || "https://nfc-med.vercel.app/"}/m/${encodeURIComponent(id)}`;
   return token ? `${u}?t=${encodeURIComponent(token)}` : u;
 }
 
@@ -154,13 +154,13 @@ function Toolbar({
           Base URL du site public
         </Label>
         <div className="flex gap-2">
-          <Input id="baseUrl" placeholder="nfc-med.vercel.app" value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} />
-          <Button variant="secondary" onClick={() => setBaseUrl("nfc-med.vercel.app")}>Reset</Button>
+          <Input id="baseUrl" placeholder="https://nfc-med.vercel.app/" value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} />
+          <Button variant="secondary" onClick={() => setBaseUrl("https://nfc-med.vercel.app/")}>Reset</Button>
         </div>
         <p className="text-xs text-muted-foreground">
           {`C'est la racine où vit votre viewer (/m/index.html). L'URL publique sera `}
           <code className="font-mono">
-            {sanitizeBaseUrl(baseUrl) || "nfc-med.vercel.app"}/m/&lt;id&gt;
+            {sanitizeBaseUrl(baseUrl) || "https://nfc-med.vercel.app/"}/m/&lt;id&gt;
           </code>
           {`.`}
         </p>
@@ -474,7 +474,7 @@ function ConfirmDialog({
 
 export default function MedicalNFCAdmin() {
   const [cards, setCards] = useState<MedicalCard[]>([]);
-  const [baseUrl, setBaseUrl] = useState<string>("nfc-med.vercel.app");
+  const [baseUrl, setBaseUrl] = useState<string>("https://nfc-med.vercel.app/");
   const [editId, setEditId] = useState<string | null>(null);
   const [qrId, setQrId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
