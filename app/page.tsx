@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
-// UI minimal (sans shadcn) — assure-toi d'avoir créé les fichiers dans components/ui/* (cf. canvas "UI minimal")
+// UI minimal (sans shadcn) — assure-toi d'avoir créé les fichiers dans components/ui/*
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,7 +17,7 @@ import { saveAs } from "file-saver";
 import { Plus, Download, Save, Trash2, Edit, QrCode, RefreshCw, Copy, Globe } from "lucide-react";
 
 /**
- * app/page.tsx — Back‑office React pour gérer les fiches médicales NFC
+ * app/page.tsx — Back-office React pour gérer les fiches médicales NFC
  * — Compatible Next.js App Router + Vercel
  * — Utilise un kit UI minimal (pas besoin de shadcn)
  */
@@ -33,6 +33,7 @@ type MedicalCard = {
   traitements: string;
   medicaments: string[];
   urgence: { nom: string; telephone: string } | null;
+  url?: string;
   last_update: string;
 };
 
@@ -48,13 +49,21 @@ function nanoid(n = 10) {
 }
 const nowISO = () => new Date().toISOString();
 const toDisplayDate = (iso?: string) => (iso ? new Date(iso).toLocaleDateString() : "—");
-const sanitizeBaseUrl = (s: string) => (s ? s.replace(/\/$/, "") : "");
+
+// Amélioré : trim, supprime le slash final, ajoute https:// si manquant
+const sanitizeBaseUrl = (s: string) => {
+  if (!s) return "";
+  s = s.trim().replace(/\/$/, "");
+  if (!/^https?:\/\//i.test(s)) s = "https://" + s;
+  return s;
+};
+
 const buildPublicUrl = (baseUrl: string, id: string, token?: string) => {
   const u = `${sanitizeBaseUrl(baseUrl) || "https://ton-domaine"}/m/${encodeURIComponent(id)}`;
   return token ? `${u}?t=${encodeURIComponent(token)}` : u;
 };
 
-function cardToJson(card: MedicalCard) {
+function cardToJson(card: MedicalCard, baseUrl: string) {
   return {
     nom: card.nom || "",
     adresse: card.adresse || "",
@@ -65,6 +74,7 @@ function cardToJson(card: MedicalCard) {
     medicaments: card.medicaments || [],
     urgence: card.urgence ? { nom: card.urgence.nom || "", telephone: card.urgence.telephone || "" } : { nom: "", telephone: "" },
     last_update: card.last_update || nowISO(),
+    url: buildPublicUrl(baseUrl, card.id, card.token),
     ...(card.token ? { token: card.token } : {}),
   };
 }
@@ -80,6 +90,7 @@ function fromJsonToCard(json: any, id?: string): MedicalCard {
     traitements: json?.traitements || "",
     medicaments: Array.isArray(json?.medicaments) ? json.medicaments : (json?.medicaments ? String(json.medicaments).split(/\s*,\s*|\n+/).filter(Boolean) : []),
     urgence: json?.urgence ? { nom: json.urgence.nom || "", telephone: json.urgence.telephone || "" } : { nom: "", telephone: "" },
+    url: json?.url || "",
     last_update: json?.last_update || nowISO(),
   };
 }
@@ -165,7 +176,7 @@ function CardsTable({ cards, onEdit, onDelete, onDownload, onQr }: {
   );
 }
 
-function EditDialog({ open, setOpen, card, onSave }: { open: boolean; setOpen: (v: boolean) => void; card: MedicalCard | null; onSave: (c: MedicalCard) => void; }) {
+function EditDialog({ open, setOpen, card, onSave, baseUrl }: { open: boolean; setOpen: (v: boolean) => void; card: MedicalCard | null; onSave: (c: MedicalCard) => void; baseUrl: string; }) {
   const [local, setLocal] = useState<MedicalCard | null>(card);
   useEffect(() => setLocal(card), [card]);
   function set<K extends keyof MedicalCard>(key: K, val: MedicalCard[K]) { if (!local) return; setLocal({ ...local, [key]: val }); }
@@ -197,13 +208,44 @@ function EditDialog({ open, setOpen, card, onSave }: { open: boolean; setOpen: (
                 <Label>Adresse</Label>
                 <Textarea value={local.adresse} onChange={(e) => set("adresse", e.target.value)} placeholder="1234 Rue…" rows={2}/>
               </div>
+
+              {/* URL complète (calculée automatiquement) */}
               <div className="grid gap-2">
-                <Label>ID (URL)</Label>
+                <Label>URL complète</Label>
                 <div className="flex gap-2">
-                  <Input value={local.id} onChange={(e) => set("id", e.target.value)} className="font-mono"/>
-                  <Button type="button" variant="outline" onClick={() => set("id", nanoid())}><RefreshCw className="h-4 w-4"/></Button>
+                  <Input readOnly value={buildPublicUrl(baseUrl, local.id, local.token)} className="font-mono"/>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => navigator.clipboard?.writeText(buildPublicUrl(baseUrl, local.id, local.token))}
+                    className="gap-2"
+                  >
+                    <Copy className="h-4 w-4"/>Copier
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => set("id", nanoid())}
+                    title="Générer un nouvel ID"
+                  >
+                    <RefreshCw className="h-4 w-4"/>
+                  </Button>
+                </div>
+                <div className="text-xs text-gray-500">
+                  ID interne : <span className="font-mono">{local.id}</span> — Base URL : <span className="font-mono">{sanitizeBaseUrl(baseUrl) || "https://ton-domaine"}</span>
                 </div>
               </div>
+
+              {/* ID interne éditable */}
+              <div className="grid gap-2">
+                <Label>ID interne (modifiable)</Label>
+                <Input
+                  value={local.id}
+                  onChange={(e) => set("id", e.target.value.replace(/\s+/g, ""))}
+                  className="font-mono"
+                />
+              </div>
+
               <div className="grid gap-2">
                 <Label>Token (optionnel)</Label>
                 <div className="flex gap-2">
@@ -214,6 +256,7 @@ function EditDialog({ open, setOpen, card, onSave }: { open: boolean; setOpen: (
               </div>
             </div>
           </TabsContent>
+
           <TabsContent value="medical">
             <div className="grid sm:grid-cols-2 gap-4">
               <div className="grid gap-2">
@@ -234,6 +277,7 @@ function EditDialog({ open, setOpen, card, onSave }: { open: boolean; setOpen: (
               </div>
             </div>
           </TabsContent>
+
           <TabsContent value="urgence">
             <div className="grid sm:grid-cols-2 gap-4">
               <div className="grid gap-2">
@@ -312,7 +356,11 @@ function ConfirmDialog({ open, setOpen, onConfirm, title, description }: { open:
 
 export default function Page() {
   const [cards, setCards] = useState<MedicalCard[]>([]);
-  const [baseUrl, setBaseUrl] = useState<string>(typeof window !== 'undefined' ? (localStorage.getItem(BASEURL_KEY) || "https://ton-domaine") : "https://ton-domaine");
+  const [baseUrl, setBaseUrl] = useState<string>(
+    typeof window !== "undefined"
+      ? (localStorage.getItem(BASEURL_KEY) || window.location.origin)
+      : "https://ton-domaine"
+  );
   const [editId, setEditId] = useState<string | null>(null);
   const [qrId, setQrId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -320,6 +368,7 @@ export default function Page() {
   const editing = useMemo(() => cards.find(c => c.id === editId) || null, [cards, editId]);
   const qrcard  = useMemo(() => cards.find(c => c.id === qrId) || null, [cards, qrId]);
 
+  // Charger depuis localStorage
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
@@ -330,33 +379,66 @@ export default function Page() {
     } catch {}
   }, []);
 
+  // Sauvegarder dans localStorage
   useEffect(() => { localStorage.setItem(STORAGE_KEY, JSON.stringify(cards)); }, [cards]);
-  useEffect(() => { localStorage.setItem(BASEURL_KEY, baseUrl); }, [baseUrl]);
+
+  // Mémoriser la base URL et recalculer l'URL publique des fiches si elle change
+  useEffect(() => {
+    localStorage.setItem(BASEURL_KEY, baseUrl);
+    setCards(prev => prev.map(c => ({ ...c, url: buildPublicUrl(baseUrl, c.id, c.token) })));
+  }, [baseUrl]);
 
   function createNew() {
-    const c: MedicalCard = { id: nanoid(), token: "", nom: "", adresse: "", telephone: "", groupe_sanguin: "", allergies: [], traitements: "", medicaments: [], urgence: { nom: "", telephone: "" }, last_update: nowISO() };
+    const c: MedicalCard = {
+      id: nanoid(),
+      token: "",
+      nom: "",
+      adresse: "",
+      telephone: "",
+      groupe_sanguin: "",
+      allergies: [],
+      traitements: "",
+      medicaments: [],
+      urgence: { nom: "", telephone: "" },
+      url: "",
+      last_update: nowISO()
+    };
+    c.url = buildPublicUrl(baseUrl, c.id, c.token);
     setCards(prev => [c, ...prev]);
     setEditId(c.id);
   }
+
+  // Remplace la fiche par son ancien ID (editId), même si l'utilisateur a modifié l'ID
   function saveCard(updated: MedicalCard) {
-    setCards(prev => prev.map(c => (c.id === updated.id ? updated : c)));
+    const safeId = (updated.id || "").trim() || nanoid();
+    const safe = { ...updated, id: safeId, last_update: nowISO(), url: buildPublicUrl(baseUrl, safeId, updated.token) };
+    setCards(prev => {
+      // Si le nouvel ID existe déjà sur une AUTRE fiche, suffixe pour éviter collision
+      const conflict = prev.some(c => c.id === safe.id && c.id !== editId);
+      const finalCard = conflict ? { ...safe, id: `${safe.id}-${nanoid(4)}`, url: buildPublicUrl(baseUrl, `${safe.id}-${nanoid(4)}`, safe.token) } : safe;
+      return prev.map(c => (c.id === (editId ?? safe.id) ? finalCard : c));
+    });
     setEditId(null);
   }
+
   function deleteCard(id: string) { setCards(prev => prev.filter(c => c.id !== id)); setDeleteId(null); }
+
   function downloadJson(id: string) {
     const card = cards.find(c => c.id === id); if (!card) return;
-    const json = cardToJson(card);
+    const json = cardToJson(card, baseUrl);
     downloadFile(`${id}.json`, JSON.stringify(json, null, 2));
   }
+
   async function exportZip() {
     const zip = new JSZip();
     const folder = zip.folder("data"); if (!folder) return;
-    cards.forEach(c => folder.file(`${c.id}.json`, JSON.stringify(cardToJson(c), null, 2)));
-    const readme = `Déposez le dossier data/ à la racine (public/data). BaseURL: ${sanitizeBaseUrl(baseUrl)}`;
+    cards.forEach(c => folder.file(`${c.id}.json`, JSON.stringify(cardToJson(c, baseUrl), null, 2)));
+    const readme = `Déposez le dossier data/ à la racine (public/data).\nBaseURL: ${sanitizeBaseUrl(baseUrl)}\nChaque JSON contient un champ \"url\" pointant vers /m/<id>.`;
     zip.file("README.txt", readme);
     const blob = await zip.generateAsync({ type: "blob" });
     saveAs(blob, `nfc-medical-data-${new Date().toISOString().slice(0,10)}.zip`);
   }
+
   async function onImportFiles(files: FileList | null) {
     if (!files || files.length === 0) return;
     const imported: MedicalCard[] = [];
@@ -371,7 +453,10 @@ export default function Page() {
     if (imported.length) {
       setCards(prev => {
         const map = new Map(prev.map(c => [c.id, c] as const));
-        for (const c of imported) map.set(c.id, c);
+        for (const c of imported) {
+          const merged = { ...c, url: buildPublicUrl(baseUrl, c.id, c.token) };
+          map.set(c.id, merged);
+        }
         return Array.from(map.values());
       });
     }
@@ -381,7 +466,7 @@ export default function Page() {
     <div className="min-h-screen bg-gray-50">
       <div className="mx-auto max-w-6xl p-5 md:p-8">
         <div className="mb-6">
-          <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">Back‑office — Fiches médicales NFC</h1>
+          <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">Back-office — Fiches médicales NFC</h1>
           <p className="text-sm text-gray-600 mt-1">Générez, éditez et exportez des fiches prêtes pour vos puces NTAG215 et votre site public.</p>
         </div>
 
@@ -401,12 +486,12 @@ export default function Page() {
         </Card>
 
         {/* Dialogs */}
-        <EditDialog open={!!editId} setOpen={(v) => !v && setEditId(null)} card={editing} onSave={saveCard} />
+        <EditDialog open={!!editId} setOpen={(v) => !v && setEditId(null)} card={editing} onSave={saveCard} baseUrl={baseUrl} />
         <QrDialog open={!!qrId} setOpen={(v) => !v && setQrId(null)} card={qrcard} baseUrl={baseUrl} />
-        <ConfirmDialog open={!!deleteId} setOpen={(v) => !v && setDeleteId(null)} onConfirm={() => deleteCard(deleteId!)} title="Supprimer la fiche ?" description="Cette action est définitive (dans ce back‑office)." />
+        <ConfirmDialog open={!!deleteId} setOpen={(v) => !v && setDeleteId(null)} onConfirm={() => deleteCard(deleteId!)} title="Supprimer la fiche ?" description="Cette action est définitive (dans ce back-office)." />
 
         <footer className="text-xs text-gray-500 text-center mt-8">
-          <span>Conseil : protégez ce back‑office par mot de passe et utilisez des IDs opaques.</span>
+          <span>Conseil : protégez ce back-office par mot de passe et utilisez des IDs opaques.</span>
         </footer>
       </div>
     </div>
