@@ -544,20 +544,43 @@ export default function Page() {
 
   // Remplace la fiche par son ancien ID (editId), même si l'utilisateur a modifié l'ID
   function saveCard(updated: MedicalCard) {
-    const safeId = (updated.id || "").trim() || nanoid();
-    const baseCard = { ...updated, id: safeId, last_update: nowISO() };
-    setCards((prev) => {
-      const hasConflict = prev.some((c) => c.id === baseCard.id && c.id !== editId);
-      let finalId = baseCard.id;
-      if (hasConflict) {
-        const suffix = "-" + nanoid(4);
-        finalId = baseCard.id + suffix;
-      }
-      const finalCard = { ...baseCard, id: finalId, url: buildPublicUrl(baseUrl, finalId, baseCard.token) };
-      return prev.map((c) => (c.id === (editId ?? baseCard.id) ? finalCard : c));
-    });
-    setEditId(null);
-  }
+  // ID avant édition (celui de la ligne cliquée)
+  const prevId = editId ?? updated.id;
+
+  // ID après édition (sécurisé)
+  const nextId = (updated.id || "").trim() || nanoid();
+
+  setCards((prev) => {
+    // Fiche à remplacer (par ancien ID)
+    const idx = prev.findIndex((c) => c.id === prevId);
+
+    // Collision : un autre enregistrement a déjà nextId
+    const idTakenByOther = prev.some((c) => c.id === nextId && c.id !== prevId);
+
+    let finalId = nextId;
+    if (idTakenByOther) {
+      const suffix = "-" + nanoid(4);
+      finalId = nextId + suffix;
+    }
+
+    const finalCard: MedicalCard = {
+      ...updated,
+      id: finalId,
+      url: buildPublicUrl(baseUrl, finalId, updated.token),
+      last_update: nowISO(),
+    };
+
+    if (idx >= 0) {
+      const copy = prev.slice();
+      copy[idx] = finalCard;           // remplace proprement
+      return copy;
+    }
+    // Filet de secours : si on ne retrouve pas prevId, on ajoute la fiche
+    return [finalCard, ...prev];
+  });
+
+  setEditId(null); // ferme la modale
+}
 
   function deleteCard(id: string) {
     setCards((prev) => prev.filter((c) => c.id !== id));
