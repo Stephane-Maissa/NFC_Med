@@ -74,7 +74,7 @@ const sanitizeBaseUrl = (s: string) => {
 };
 
 const buildPublicUrl = (baseUrl: string, id: string, token?: string) => {
-  const u = `${sanitizeBaseUrl(baseUrl) || "https://ton-domaine"}/m/${encodeURIComponent(id)}`;
+  const u = `${sanitizeBaseUrl(baseUrl) || "https://nfc-med.vercel.app"}/m/${encodeURIComponent(id)}`;
   return token ? `${u}?t=${encodeURIComponent(token)}` : u;
 };
 
@@ -145,8 +145,8 @@ function Toolbar({
           Base URL du site public
         </Label>
         <div className="flex gap-2">
-          <Input id="baseUrl" placeholder="https://ton-domaine" value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} />
-          <Button variant="secondary" onClick={() => setBaseUrl("https://ton-domaine")}>
+          <Input id="baseUrl" placeholder="https://nfc-med.vercel.app" value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} />
+          <Button variant="secondary" onClick={() => setBaseUrl("https://nfc-med.vercel.app")}>
             Reset
           </Button>
         </div>
@@ -315,7 +315,7 @@ function EditDialog({
                 </div>
                 <div className="text-xs text-gray-500">
                   ID interne : <span className="font-mono">{local.id}</span> — Base URL :{" "}
-                  <span className="font-mono">{sanitizeBaseUrl(baseUrl) || "https://ton-domaine"}</span>
+                  <span className="font-mono">{sanitizeBaseUrl(baseUrl) || "https://nfc-med.vercel.app"}</span>
                 </div>
               </div>
 
@@ -491,7 +491,7 @@ function ConfirmDialog({
 export default function Page() {
   const [cards, setCards] = useState<MedicalCard[]>([]);
   const [baseUrl, setBaseUrl] = useState<string>(
-    typeof window !== "undefined" ? localStorage.getItem(BASEURL_KEY) || window.location.origin : "https://ton-domaine"
+    typeof window !== "undefined" ? localStorage.getItem(BASEURL_KEY) || window.location.origin : "https://nfc-med.vercel.app"
   );
   const [editId, setEditId] = useState<string | null>(null);
   const [qrId, setQrId] = useState<string | null>(null);
